@@ -1,3 +1,9 @@
 #!/usr/bin/env node
 
-var dewordify = require("../index.js")();
+import dewordifyMain, { dewordify } from "../index.js";
+const filename = process.argv[2];
+if (filename) {
+	dewordify(filename);
+} else {
+	dewordifyMain();
+}

@@ -1,23 +1,22 @@
-"use strict";
+import munch from "./lib/munch/index.js";
+import strip from "./lib/strip/index.js";
+import fileFinder from "./lib/fileFinder/index.js";
+import docxChooser from "./lib/docxChooser/index.js";
+import * as woolly from "./lib/woolly-mammoth/index.js";
+import normalize from "./lib/normalize/index.js";
+import paginate from "./lib/paginate/index.js";
+import markout from "./lib/markout/index.js";
+import statsTracker from "./lib/statsTracker/index.js";
+import pageGenerator from "./lib/pageGenerator/index.js";
+import chalk from "chalk";
 
-var munch = require("./lib/munch");
-var strip = require("./lib/strip");
-var fileFinder = require("./lib/fileFinder");
-var docxChooser = require("./lib/docxChooser");
-var woolly = require("./lib/woolly-mammoth");
-var normalize = require("./lib/normalize");
-var paginate = require("./lib/paginate");
-var markout = require("./lib/markout");
-var statsTracker = require("./lib/statsTracker");
-var pageGenerator = require("./lib/pageGenerator");
+const styleMapPath = fileFinder("styleMap.txt");
+const markoutMapPath = fileFinder("markoutMap.json");
+const templatePath = fileFinder("template.html");
 
-var styleMapPath = fileFinder("styleMap.txt");
-var markoutMapPath = fileFinder("markoutMap.json");
-var templatePath = fileFinder("template.html");
+let writeFiles = true;
 
-var writeFiles = true;
-
-module.exports = function (command) {
+export default function (command) {
 	switch (command) {
 		case "munch":
 			munch();
@@ -32,24 +31,53 @@ module.exports = function (command) {
 		default:
 			dewordify();
 	}
-};
+}
 
-function dewordify() {
-	var docx = docxChooser(process.cwd());
+export { dewordify };
+
+async function dewordify(filename) {
+	let docx;
+	if (filename) {
+		const path = await import('path');
+		docx = path.default.join(process.cwd(), filename);
+		console.log("DOCX DEBUG: Using filename argument:", filename);
+		console.log("DOCX DEBUG: Full path:", docx);
+	} else {
+		docx = docxChooser(process.cwd());
+		console.log("DOCX DEBUG: Using most recent file:", docx);
+	}
 
 	woolly.readFile(docx, styleMapPath)
+		.then(function(result) {
+			console.log("WOOLLY DEBUG: mammoth result value:", result ? 'exists' : 'null');
+			console.log("WOOLLY DEBUG: mammoth result keys:", result ? Object.keys(result) : 'none');
+			return result;
+		})
 		.then(woolly.displayWarnings)
-		.then(woolly.getHTML)
+		.then(async function(result) {
+			const html = woolly.getHTML(result);
+			const cheerioLoader = await import('./lib/cheerio-loader/index.js');
+			const $ = cheerioLoader.default.load(html);
+			console.log("WOOLLY DEBUG: H1 count in getHTML result:", $('h1').length);
+			console.log("WOOLLY DEBUG: p count in getHTML result:", $('p').length);
+			console.log("WOOLLY DEBUG: HTML length:", html.length);
+			console.log("WOOLLY DEBUG: First 500 chars:", html.substring(0, 500));
+			return html;
+		})
 		.then(processHTML);
 }
 
-function processHTML(html) {
-	var normalizedHTML;
-	var htmlArray;
-
-	normalizedHTML = normalize(html);
-	htmlArray = paginate(normalizedHTML);
+async function processHTML(html) {
+	const normalizedHTML = normalize(html);
+	const cheerioLoader = await import('./lib/cheerio-loader/index.js');
+	const $ = cheerioLoader.default.load(normalizedHTML);
+	console.log("DEBUG: H1 count in normalizedHTML:", $('h1').length);
+	console.log("DEBUG: p count in normalizedHTML:", $('p').length);
+	console.log("DEBUG: First 500 chars of normalizedHTML:", normalizedHTML.substring(0, 500));
+	let htmlArray = paginate(normalizedHTML);
+	console.log("DEBUG: Pages after paginate:", htmlArray.length);
 	htmlArray = markout(htmlArray, markoutMapPath);
+	console.log("DEBUG: Pages after markout:", htmlArray.length);
 	statsTracker(htmlArray, markoutMapPath);
 
 	if (writeFiles) {
