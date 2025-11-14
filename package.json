@@ -13,7 +13,20 @@
     "node": ">=6"
   },
   "scripts": {
-    "update": "git pull && npm install -g"
+    "update": "git pull && npm install -g",
+    "pkg": "pkg .",
+    "pkg:win": "pkg . --targets node24-win-x64",
+    "pkg:macos": "pkg . --targets node24-macos-x64",
+    "pkg:all": "pkg . --targets node24-win-x64,node24-macos-x64,node24-linux-x64"
+  },
+  "pkg": {
+    "scripts": [
+      "bin/**/*.js"
+    ],
+    "assets": [
+      "default-files/**/*"
+    ],
+    "outputPath": "dist"
   },
   "author": {
     "name": "Mike Taylor"
@@ -22,8 +35,11 @@
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.2",
-    "cheerio": "^0.22.0",
+    "cheerio": "^1.1.2",
     "js-beautify": "^1.14.11",
     "mammoth": "^1.6.0"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.10.1"
   }
 }

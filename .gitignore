@@ -3,3 +3,4 @@ node_modules
 Reference-Folder
 old-script.js
 package-lock.json
+dist

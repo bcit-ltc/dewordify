@@ -17,30 +17,48 @@ var templatePath = fileFinder("template.html");
 
 var writeFiles = true;
 
-module.exports = function (command) {
-	switch (command) {
-		case "munch":
+module.exports = function (commandOrFilename) {
+	// If it's a known command, handle it
+	if (commandOrFilename === "munch") {
 			munch();
-			break;
-		case "estimate":
-			writeFiles = false;
-			dewordify();
-			break;
-		case "strip":
-			strip();
-			break;
-		default:
-			dewordify();
+		return Promise.resolve();
 	}
+	if (commandOrFilename === "estimate") {
+			writeFiles = false;
+		return dewordify(); // estimate uses default behavior (most recent docx)
+	}
+	if (commandOrFilename === "strip") {
+			strip();
+		return Promise.resolve();
+	}
+	
+	// Otherwise, treat it as a filename (or undefined for default behavior)
+	return dewordify(commandOrFilename);
 };
 
-function dewordify() {
-	var docx = docxChooser(process.cwd());
+function dewordify(filename) {
+	var docx;
+	
+	if (filename) {
+		// Use the provided filename
+		var path = require("path");
+		docx = path.isAbsolute(filename) ? filename : path.join(process.cwd(), filename);
+	} else {
+		// Find the most recently modified docx file
+		docx = docxChooser(process.cwd());
+	}
 
-	woolly.readFile(docx, styleMapPath)
+	return woolly.readFile(docx, styleMapPath)
 		.then(woolly.displayWarnings)
 		.then(woolly.getHTML)
-		.then(processHTML);
+		.then(processHTML)
+		.catch(function(err) {
+			console.error("\nError processing document:", err.message);
+			if (err.stack) {
+				console.error(err.stack);
+			}
+			throw err;
+		});
 }
 
 function processHTML(html) {
@@ -56,4 +74,6 @@ function processHTML(html) {
 		// write files
 		pageGenerator(htmlArray, templatePath);
 	}
+	
+	return Promise.resolve();
 }

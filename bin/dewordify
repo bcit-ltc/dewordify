@@ -1,3 +1,97 @@
 #!/usr/bin/env node
 
-var dewordify = require("../index.js")();
+var dewordify = require("../index.js");
+var args = process.argv.slice(2);
+
+// Handle --help flag
+if (args.includes("--help") || args.includes("-h")) {
+	console.log("Usage: dewordify [file.docx]");
+	console.log("");
+	console.log("If no file is specified, dewordify will use the most recently modified .docx file in the current directory.");
+	process.exit(0);
+}
+
+// Function to pause before exiting (Windows only)
+function pauseBeforeExit(exitCode) {
+	if (process.platform === "win32") {
+		console.log("\nPress Enter to exit...");
+		var readline = require("readline");
+		if (process.stdin.isTTY) {
+			try {
+				process.stdin.resume();
+				var rl = readline.createInterface({
+					input: process.stdin,
+					output: process.stdout
+				});
+				rl.question("", function() {
+					rl.close();
+					process.exit(exitCode || 0);
+				});
+				return;
+			} catch (err) {
+				// Fall through to timeout
+			}
+		}
+		// Fallback: Keep process alive for 30 seconds
+		console.log("(Window will close in 30 seconds...)");
+		setTimeout(function() {
+			process.exit(exitCode || 0);
+		}, 30000);
+	} else {
+		process.exit(exitCode || 0);
+	}
+}
+
+// Set up error handlers BEFORE doing anything else
+process.on("unhandledRejection", function(reason, promise) {
+	console.error("\nUnhandled rejection:", reason);
+	if (reason && reason.stack) {
+		console.error(reason.stack);
+	}
+	pauseBeforeExit(1);
+});
+
+process.on("uncaughtException", function(error) {
+	console.error("\nUncaught exception:", error.message);
+	if (error.stack) {
+		console.error(error.stack);
+	}
+	pauseBeforeExit(1);
+});
+
+// Pass the first argument as the filename, or undefined for default behavior
+var filename = args[0];
+
+// Wrap the dewordify call to catch completion and errors
+try {
+	var result = dewordify(filename);
+	
+	// If dewordify returns a promise, handle it
+	if (result && typeof result.then === "function") {
+		result
+			.then(function() {
+				// Success - pause briefly then exit
+				setTimeout(function() {
+					pauseBeforeExit(0);
+				}, 1000);
+			})
+			.catch(function(err) {
+				console.error("\nError during processing:", err);
+				if (err && err.stack) {
+					console.error(err.stack);
+				}
+				pauseBeforeExit(1);
+			});
+	} else {
+		// Synchronous completion - pause briefly then exit
+		setTimeout(function() {
+			pauseBeforeExit(0);
+		}, 1000);
+	}
+} catch (err) {
+	console.error("\nError:", err.message);
+	if (err.stack) {
+		console.error(err.stack);
+	}
+	pauseBeforeExit(1);
+}

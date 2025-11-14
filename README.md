@@ -2,38 +2,93 @@
 
 Dewordify is used to facilitate the development of online course materials by converting MS Word documents into HTML pages.
 
-1. Install node [https://nodejs.org/en/download/](https://nodejs.org/en/download/)
-2. Install dewordify
+## Installation
 
-```
-(sudo) npm install -g
-```
+### For Users (Packaged App)
 
-## Updates
+Download the pre-built executable for your platform from the `dist/` folder:
+- **Windows**: `dewordify.exe` or `dewordify-win.exe`
+- **macOS**: `dewordify-macos`
+- **Linux**: `dewordify-linux`
 
-This package includes an NPM script that allows updates with a single line:
-
-```
-(sudo) npm run update
-```
-
-The above command is just sugar for the following commands which you can just as easily run instead:
-
-```
-git pull && npm install -g
-```
+No Node.js installation required! The executable is standalone and includes all dependencies.
 
 ## Usage
-In the command line, navigate to the location of the Word Document (docx) and run
 
+### Using the Packaged App
+
+In the command line, navigate to the location of the Word Document (docx) and run:
+
+**Windows:**
+```bash
+cd path/to/file/location
+dewordify.exe
 ```
+
+**macOS/Linux:**
+```bash
+cd path/to/file/location
+./dewordify-macos    # or ./dewordify-linux
+```
+
+If the word file that you would like to parse is not the most recently modified docx file in the folder, either re-save it so that it is, or tell dewordify which file to target like so:
+
+```bash
+dewordify.exe file_name.docx        # Windows
+./dewordify-macos file_name.docx    # macOS
+./dewordify-linux file_name.docx    # Linux
+```
+
+### Help
+
+All versions support the `--help` flag:
+```bash
+dewordify.exe --help        # Windows
+./dewordify-macos --help    # macOS
+```
+
+## For Developers
+
+### Installation
+
+To develop or contribute to Dewordify, use `npm link` for local development:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd dewordify
+
+# Install dependencies
+npm install
+
+# Link the package globally for development
+npm link
+```
+
+This will make the `dewordify` command available globally, pointing to your local development version. Changes to the code will be immediately available.
+
+To unlink:
+```bash
+npm unlink -g dewordify
+```
+
+### Usage (Development Version)
+
+After running `npm link`, you can use dewordify just like the packaged version:
+
+```bash
 cd path/to/file/location
 dewordify
 ```
-If the word file that you would like to parse is not the most recently modified docx file in the folder, either re-save it so that it is, or tell dewordify which file to target like so:
 
-```
+Or with a specific file:
+```bash
 dewordify file_name.docx
+```
+
+Help:
+```bash
+dewordify --help
 ```
 ## Customization
 
