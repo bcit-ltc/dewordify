@@ -10,35 +10,34 @@ Thumbs.db
 .vscode/
 .idea/
 
+# VCS
+.git
+.gitignore
+.gitattributes
+.github/
+
 # Node.js
-node_modules/
+node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
 # Build outputs
-dist/
-dist-web/
-build/
-out/
-coverage/
-
-# Local scratch/cache
-tmp/
-.cache/
-.dockerignore-local
+dist
+dist-web
+build
+out
+coverage
 
 # Helm artifacts
 charts/**/*.tgz
+.helmignore
+
+# Secrets/env
+.env
+.env.*
+!.env.example
 
 # Local pulled chart
 app-chart/
-
-# Secrets
-**/secrets*
-*.local
-
-# Logs
-*.log
-logs/
