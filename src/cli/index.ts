@@ -5,9 +5,10 @@ import type { MarkoutMap, Stats, Message } from "../core/index.js";
 import { nodeConverter } from "./converter.js";
 import { chooseDocx, findUp, loadAssets, writeOutputFiles } from "./files.js";
 import { munch } from "./munch.js";
+import { serve } from "./serve.js";
 import { strip } from "./strip.js";
 
-const commands = ["dewordify", "munch", "estimate", "strip"];
+const commands = ["dewordify", "munch", "estimate", "strip", "serve"];
 
 /**
  * Main entry point for the CLI.
@@ -23,6 +24,9 @@ export async function run(command?: string, fileArg?: string) {
 			return;
 		case "strip":
 			strip(cwd);
+			return;
+		case "serve":
+			serve(fileArg ? parseInt(fileArg, 10) : 3000);
 			return;
 		case "estimate":
 			await dewordify(cwd, fileArg, false);

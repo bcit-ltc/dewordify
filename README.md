@@ -50,6 +50,8 @@ dewordify file.docx    # convert a specific file
 estimate file.docx     # report stats without writing files
 munch                  # sanitize html/asset filenames in place
 strip                  # remove <!--NOTE: comments from html files
+dewordify serve        # start HTTP API server on port 3000
+dewordify serve 8080   # start HTTP API server on a custom port
 ```
 
 During development you can run the CLI without building:
@@ -57,6 +59,64 @@ During development you can run the CLI without building:
 ```
 npm run cli -- path/to/file.docx
 ```
+
+### Running with Nix (no global install required)
+
+If you have [Nix](https://nixos.org) installed, enter a dev shell with Node.js 24:
+
+```
+nix-shell
+npm install
+npm run build:cli
+```
+
+Then run the CLI as usual — no global install needed:
+
+```
+dewordify file.docx
+```
+
+### HTTP API Server
+
+The `serve` command starts a lightweight HTTP server for pipeline integration. This allows other tools and services to convert DOCX files programmatically without a global install.
+
+**Start the server:**
+
+```
+dewordify serve        # default port 3000
+dewordify serve 8080   # custom port
+```
+
+**Endpoints:**
+
+- `GET /health` — returns `{"status":"ok"}`
+- `POST /convert` — upload a `.docx` file as raw binary body; returns JSON with converted files, stats, and messages
+
+**Example:**
+
+```bash
+curl -X POST http://localhost:3000/convert \
+  --data-binary @document.docx \
+  -H "Content-Type: application/octet-stream"
+```
+
+**Response format:**
+
+```json
+{
+  "files": [
+    { "filename": "01_page.html", "data": "<html>..." },
+    { "filename": "assets/1.jpeg", "data": "<base64>" }
+  ],
+  "stats": {
+    "structures": [{ "name": "Pages", "count": 5 }],
+    "learningBlocks": [{ "name": "#note", "count": 2 }]
+  },
+  "messages": [{ "level": "warning", "source": "mammoth", "text": "..." }]
+}
+```
+
+String file data (HTML pages) is returned as plain text; binary file data (images) is returned as base64.
 
 ### Customization
 
@@ -72,8 +132,9 @@ Defaults for all three are bundled in `src/core/defaults.ts`.
 
 ```
 src/core/    environment-agnostic conversion pipeline (no Node/browser APIs)
-src/cli/     Node adapter: filesystem IO, mammoth (Node), commands
+src/cli/     Node adapter: filesystem IO, mammoth (Node), commands, HTTP API
 src/web/     browser adapter: mammoth browser build, React UI, zip download
 bin/         CLI entry points (import from dist/)
 tests/       vitest suite with sample .docx fixtures (npm test)
+shell.nix    Nix dev shell with Node.js 24 (nix-shell)
 ```

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { run } from "../dist/cli/index.js";
 
-const known = ["munch", "estimate", "strip"];
+const known = ["munch", "estimate", "strip", "serve"];
 const arg2 = process.argv[2];
 
 if (known.includes(arg2)) {

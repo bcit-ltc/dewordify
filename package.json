@@ -9,6 +9,12 @@
     "estimate": "./bin/estimate.js",
     "strip": "./bin/strip.js"
   },
+  "files": [
+    "bin",
+    "dist",
+    "src/core",
+    "src/cli"
+  ],
   "engines": {
     "node": ">=24"
   },
