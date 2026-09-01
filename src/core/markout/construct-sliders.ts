@@ -1,4 +1,5 @@
 import type { CheerioAPI } from "cheerio";
+import type { AnyNode } from "domhandler";
 import { wrapAllHtml } from "./helpers.js";
 
 /**
@@ -10,33 +11,38 @@ import { wrapAllHtml } from "./helpers.js";
  */
 export function constructSliders($: CheerioAPI) {
 	$(".slider").each(function () {
-		const $children = $(this).children();
-		const slides: { start: number; end: number }[] = [];
-		let slideStart = -1;
+		// Track slide membership by node reference rather than index. Inserting
+		// placeholder <img> elements mid-pass shifts live child indices out of
+		// sync with any pre-captured index collection, so recorded start/end
+		// bounds would point at the wrong nodes.
+		const slides: AnyNode[][] = [];
+		let current: AnyNode[] | null = null;
 
-		$children.each(function (i) {
-			const isHeader = $(this).is("h2");
-			const isImage = $(this).is("img");
+		$(this)
+			.children()
+			.each(function () {
+				const isHeader = $(this).is("h2");
+				const isImage = $(this).is("img");
 
-			if (isHeader) {
-				if (slideStart >= 0) {
-					slides.push({ start: slideStart, end: i });
+				if (isHeader) {
+					if (current) slides.push(current);
+					current = [this];
+					if (!$(this).next().is("img")) {
+						const $placeholder = $("<img>");
+						$(this).after($placeholder);
+						current.push($placeholder[0]);
+					}
+				} else if (isImage && !current) {
+					current = [this];
+				} else if (current) {
+					current.push(this);
 				}
-				slideStart = i;
-				if (!$(this).next().is("img")) {
-					$(this).after($("<img>"));
-				}
-			} else if (isImage && slideStart === -1) {
-				slideStart = i;
-			}
-		});
+			});
 
-		if (slideStart >= 0) {
-			slides.push({ start: slideStart, end: $children.length });
-		}
+		if (current) slides.push(current);
 
 		for (let i = slides.length - 1; i >= 0; i--) {
-			wrapAllHtml($, $(this).children().slice(slides[i].start, slides[i].end), "<figure>");
+			wrapAllHtml($, $(slides[i]), "<figure>");
 		}
 		$(this).children("figure").addClass("img");
 	});

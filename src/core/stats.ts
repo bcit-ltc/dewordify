@@ -94,6 +94,15 @@ function getCount($: CheerioAPI, ctx: ConvertContext, marker: string) {
 	} else {
 		selector = tagName;
 	}
+
+	// constructInteractions replaces the `pre.interaction` wrapper with the
+	// parsed embed (typically an <iframe>), dropping the class so the generic
+	// `.interaction` selector always matches zero. Interactions are the only
+	// source of iframes in the pipeline, so count those as a proxy.
+	if (marker === "interaction") {
+		return $("iframe").length;
+	}
+
 	return $(selector).length;
 }
 

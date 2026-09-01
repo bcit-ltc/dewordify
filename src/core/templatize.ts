@@ -17,9 +17,12 @@ export function templatize($page: CheerioAPI, template: string, fallbackTitle = 
 	const pageHtml = $page("temp").html() ?? "";
 
 	if (template.includes("{{content}}")) {
+		// Use replacer functions so $-sequences in content/title (e.g. $&, $$,
+		// $`, $') are inserted verbatim instead of being interpreted as special
+		// replacement patterns by String.replace.
 		return template
-			.replace("{{title}}", title)
-			.replace("{{content}}", pageHtml);
+			.replace("{{title}}", () => title)
+			.replace("{{content}}", () => pageHtml);
 	}
 
 	return pageHtml;

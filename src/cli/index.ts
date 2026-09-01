@@ -51,7 +51,7 @@ async function dewordify(cwd: string, fileArg: string | undefined, writePages: b
 
 	let styleMap = defaultStyleMap;
 	if (styleMapPath) {
-		const custom = fs.readFileSync(styleMapPath, "utf8").replace("\r\n", "\n").split("\n");
+		const custom = fs.readFileSync(styleMapPath, "utf8").replace(/\r\n/g, "\n").split("\n");
 		styleMap = [...defaultStyleMap, ...custom];
 		console.log("Using custom styleMap: " + styleMapPath);
 	}

@@ -30,7 +30,7 @@ export function paginate($: CheerioAPI): CheerioAPI[] {
 	});
 
 	if ($("page").length === 0) {
-		wrapAllHtml($, $.root().children(), "<page>");
+		wrapAllHtml($, $("temp").children(), "<page>");
 	}
 
 	const pages: CheerioAPI[] = [];

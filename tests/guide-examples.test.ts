@@ -270,6 +270,31 @@ describe("interactions", () => {
 		expect($slides.first().find("img").attr("alt")).toBe("Damaged Log");
 		expect($slides.first().find("figcaption").text()).toContain("Log damaged in the log yard.");
 	});
+
+	it("#slider inserts placeholder img for h2 without a following img", () => {
+		const $ = convertFragment(
+			"<p>#slider</p>" +
+			"<h2>Damaged Log</h2>" +
+			"<p>Log damaged in the log yard.</p>" +
+			"<p>More notes about the log.</p>" +
+			"<h2>Lumber Yard</h2>" +
+			"<p>The purpose of a log yard is to store logs.</p>" +
+			"<p>/slider</p>"
+		);
+		const $slides = $("div.slider").children("figure.img");
+		expect($slides.length).toBe(2);
+		// First slide keeps its h2, both following paragraphs, and a placeholder img.
+		const $first = $slides.first();
+		expect($first.find("h2").text()).toBe("Damaged Log");
+		expect($first.find("img").length).toBe(1);
+		expect($first.find("figcaption").text()).toContain("Log damaged in the log yard.");
+		expect($first.find("figcaption").text()).toContain("More notes about the log.");
+		// Second slide keeps its h2, its paragraph, and a placeholder img.
+		const $second = $slides.last();
+		expect($second.find("h2").text()).toBe("Lumber Yard");
+		expect($second.find("img").length).toBe(1);
+		expect($second.find("figcaption").text()).toContain("store logs.");
+	});
 });
 
 describe("knowledge checks", () => {
