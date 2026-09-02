@@ -20,12 +20,11 @@ export function collectStats(pages: CheerioAPI[], ctx: ConvertContext): Stats {
 }
 
 function complexStructures(pages: CheerioAPI[]): StructureStat[] {
-	let h1Count = 0, imgCount = 0, audioCount = 0, videoCount = 0;
+	let imgCount = 0, audioCount = 0, videoCount = 0;
 	let tableCount = 0, tdCount = 0, listCount = 0, liCount = 0;
 	let adjacentListCounter = 0, totalWords = 0;
 
 	for (const $ of pages) {
-		h1Count += $("h1").length;
 		imgCount += $("img").length;
 		audioCount += $("figure.audio").length;
 		videoCount += $("figure.video").length;
@@ -46,8 +45,10 @@ function complexStructures(pages: CheerioAPI[]): StructureStat[] {
 	const structures: StructureStat[] = [
 		{
 			name: "Pages",
-			count: h1Count,
-			hint: `(~${Math.floor(totalWords / Math.max(h1Count, 1))} words/page)`
+			// Count page fragments, not H1s: headingless documents still
+			// generate a single page.
+			count: pages.length,
+			hint: `(~${Math.floor(totalWords / Math.max(pages.length, 1))} words/page)`
 		},
 		{ name: "Images", count: imgCount },
 		{ name: "Audio", count: audioCount },
@@ -96,11 +97,12 @@ function getCount($: CheerioAPI, ctx: ConvertContext, marker: string) {
 	}
 
 	// constructInteractions replaces the `pre.interaction` wrapper with the
-	// parsed embed (typically an <iframe>), dropping the class so the generic
-	// `.interaction` selector always matches zero. Interactions are the only
-	// source of iframes in the pipeline, so count those as a proxy.
+	// parsed embed (typically an <iframe>), dropping the wrapper so the generic
+	// `.interaction` selector would always match zero. Embeds from videos and
+	// linked audio also produce iframes, so interactions are identified by the
+	// `interaction` class constructInteractions adds to embed iframes.
 	if (marker === "interaction") {
-		return $("iframe").length;
+		return $("iframe.interaction").length;
 	}
 
 	return $(selector).length;

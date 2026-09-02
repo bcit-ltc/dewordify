@@ -73,8 +73,14 @@ export function loadAssets(cwd: string): Map<string, Uint8Array> {
  * String data is written as UTF-8 text; Uint8Array data is written as binary.
  */
 export function writeOutputFiles(cwd: string, files: { filename: string; data: string | Uint8Array }[]) {
+	const root = path.resolve(cwd);
 	for (const file of files) {
-		const filePath = path.join(cwd, file.filename);
+		const filePath = path.resolve(root, file.filename);
+		// Generated filenames derive from document content; refuse any that
+		// would escape the working directory.
+		if (!filePath.startsWith(root + path.sep)) {
+			throw new Error(`Refusing to write outside output directory: ${file.filename}`);
+		}
 		fs.mkdirSync(path.dirname(filePath), { recursive: true });
 		if (typeof file.data === "string") {
 			fs.writeFileSync(filePath, file.data, "utf8");

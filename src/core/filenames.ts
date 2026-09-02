@@ -39,3 +39,14 @@ export function extensionOf(fileName: string) {
 	if (dot <= 0) return "";
 	return fileName.slice(dot);
 }
+
+/**
+ * Extract an extension from user-provided text (e.g., a linked-file name in a
+ * heading) for use in an output filename. Only simple dot-extensions are
+ * accepted; anything containing path separators or traversal segments (e.g.
+ * "x.a/../../evil") resolves to "" so the generated name stays inert.
+ */
+export function safeExtensionOf(fileName: string) {
+	const ext = extensionOf(fileName);
+	return /^\.[A-Za-z0-9]{1,10}$/.test(ext) ? ext : "";
+}

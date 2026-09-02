@@ -182,3 +182,57 @@ if [ -n "${missing_files}" ]; then
   echo "${missing_files}" >&2
   exit 1
 fi
+
+# Verify completeness: flag asset references that were left un-rewritten in
+# any scanned file (mixed rewritten + untouched references must not pass).
+# A reference is considered left alone when it is relative — no scheme://,
+# protocol-relative //, scheme:, data:, or the CDN URL prefix.
+partial_files=$(find "${DIST_DIR}/" -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) | while read -r f; do
+  case "$f" in
+    *.css)  KIND=css ;;
+    *.html) KIND=html ;;
+    *)      KIND=js ;;
+  esac
+  KIND="$KIND" perl -ne '
+    my $cdn  = $ENV{CDN_URL}     // q{};
+    my $exts = $ENV{EXT_PATTERN} // q{};
+    my $kind = $ENV{KIND}        // q{};
+    exit 0 unless $cdn && $exts && $kind;
+
+    my $is_abs = sub {
+      my ($p) = @_;
+      $p =~ s{^\s+|\s+$}{}g;
+      return 1 if $p =~ m{://};
+      return 1 if $cdn ne q{} && index($p, $cdn) == 0;
+      return $p =~ m{^(?:[a-zA-Z][a-zA-Z0-9+.+-]*:|//|data:)}i;
+    };
+
+    my @paths;
+    if ($kind eq q{html}) {
+      while (/(?:src|href|data-src)=(["\x27])([^"\x27]+\.(?:$exts)(?:[#?][^"\x27]*)?)\1/gi) {
+        push @paths, $2;
+      }
+    } elsif ($kind eq q{css}) {
+      while (/url\(\s*(["\x27]?)([^"\x27\)]+\.(?:$exts)(?:[#?][^"\x27\)]*)?)\1\s*\)/gi) {
+        push @paths, $2;
+      }
+      while (/\@import\s+(?:url\()?(["\x27]?)([^"\x27\)]+\.(?:$exts)(?:[#?][^"\x27\)]*)?)\1\)?/gi) {
+        push @paths, $2;
+      }
+    } else {
+      while (/(["\x27])([^"\x27]+?\.(?:$exts)(?:[#?][^"\x27]*)?)\1/gi) {
+        push @paths, $2;
+      }
+    }
+    for my $p (@paths) {
+      unless ($is_abs->($p)) {
+        print "$.: $p\n";
+      }
+    }
+  ' "$f" | sed "s|^|$f:|"
+done)
+if [ -n "$partial_files" ]; then
+  echo "ERROR: un-rewritten asset references remain (partial rewrite):" >&2
+  echo "$partial_files" >&2
+  exit 1
+fi

@@ -3,6 +3,23 @@ import { convert, defaultStyleMap, defaultTemplate } from "../core/index.js";
 import type { ConvertResult } from "../core/index.js";
 import { nodeConverter } from "./converter.js";
 
+// Uploads are buffered in memory, so cap the body size to avoid exhausting
+// server memory on large or concurrent uploads.
+const MAX_UPLOAD_BYTES =
+	parseInt(process.env.DEWORDIFY_MAX_UPLOAD_MB ?? "", 10) > 0
+		? parseInt(process.env.DEWORDIFY_MAX_UPLOAD_MB ?? "", 10) * 1024 * 1024
+		: 50 * 1024 * 1024;
+
+// Bind to localhost by default; set DEWORDIFY_HOST to expose other interfaces.
+const HOST = process.env.DEWORDIFY_HOST ?? "127.0.0.1";
+// Optional bearer token. When set, /convert requires it; /health stays open.
+const API_KEY = process.env.DEWORDIFY_API_KEY;
+
+function sendJson(res: http.ServerResponse, status: number, body: unknown) {
+	res.writeHead(status, { "Content-Type": "application/json" });
+	res.end(JSON.stringify(body));
+}
+
 /**
  * Start a minimal HTTP API server for pipeline integration.
  *
@@ -16,15 +33,42 @@ import { nodeConverter } from "./converter.js";
 export function serve(port: number) {
 	const server = http.createServer(async (req, res) => {
 		if (req.method === "GET" && req.url === "/health") {
-			res.writeHead(200, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ status: "ok" }));
+			sendJson(res, 200, { status: "ok" });
 			return;
 		}
 
 		if (req.method === "POST" && req.url === "/convert") {
+			if (API_KEY && req.headers.authorization !== `Bearer ${API_KEY}`) {
+				sendJson(res, 401, { error: "Unauthorized" });
+				req.destroy();
+				return;
+			}
+
 			const chunks: Buffer[] = [];
-			req.on("data", (chunk: Buffer) => chunks.push(chunk));
+			let received = 0;
+			// True once the response has been claimed by an early failure
+			// path (oversized/aborted/errored upload).
+			let settled = false;
+
+			req.on("data", (chunk: Buffer) => {
+				if (settled) return;
+				received += chunk.length;
+				if (received > MAX_UPLOAD_BYTES) {
+					settled = true;
+					sendJson(res, 413, { error: "Upload too large" });
+					req.destroy();
+					return;
+				}
+				chunks.push(chunk);
+			});
+			req.on("error", () => {
+				// Aborted or errored uploads never fire "end"; just drop the buffers.
+				settled = true;
+				chunks.length = 0;
+			});
 			req.on("end", async () => {
+				if (settled) return;
+				settled = true;
 				try {
 					const buffer = Buffer.concat(chunks);
 					const result: ConvertResult = await convert(new Uint8Array(buffer), {
@@ -46,27 +90,32 @@ export function serve(port: number) {
 						messages: result.messages
 					};
 
-					res.writeHead(200, { "Content-Type": "application/json" });
-					res.end(JSON.stringify(payload));
+					sendJson(res, 200, payload);
 				} catch (err) {
-					res.writeHead(500, { "Content-Type": "application/json" });
-					res.end(JSON.stringify({ error: String(err) }));
+					sendJson(res, 500, { error: String(err) });
 				}
 			});
 			return;
 		}
 
-		res.writeHead(404, { "Content-Type": "application/json" });
-		res.end(JSON.stringify({ error: "Not found" }));
+		sendJson(res, 404, { error: "Not found" });
 	});
 
-	server.listen(port, () => {
-		console.log(`Dewordify API server listening on http://localhost:${port}`);
+	server.listen(port, HOST, () => {
+		console.log(`Dewordify API server listening on http://${HOST}:${port}`);
 		console.log("  POST /convert  — upload a .docx (raw binary body), get JSON back");
 		console.log("  GET  /health   — health check");
+		if (HOST === "127.0.0.1") {
+			console.log("  Listening on localhost only. Set DEWORDIFY_HOST to expose other interfaces.");
+		}
+		if (API_KEY) {
+			console.log("  DEWORDIFY_API_KEY is set; /convert requires a Bearer token.");
+		} else {
+			console.log("  WARNING: DEWORDIFY_API_KEY is not set; /convert is unauthenticated.");
+		}
 		console.log("");
 		console.log("Example:");
-		console.log(`  curl -X POST http://localhost:${port}/convert \\`);
+		console.log(`  curl -X POST http://${HOST}:${port}/convert \\`);
 		console.log("    --data-binary @document.docx \\");
 		console.log('    -H "Content-Type: application/octet-stream"');
 	});

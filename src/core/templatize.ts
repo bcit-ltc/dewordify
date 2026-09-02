@@ -1,11 +1,14 @@
 import type { CheerioAPI } from "cheerio";
+import { loadHtml } from "./load-html.js";
 
 /**
  * Apply an HTML template to a page fragment.
  *
  * The template uses `{{title}}` and `{{content}}` string placeholders.
- * If the template does not contain `{{content}}`, the page HTML is
- * returned without any template wrapping.
+ * Legacy templates that instead contain a `<content>` element, a
+ * `.container` wrapper, or only a `<body>` are also supported: the page
+ * HTML is injected at the first matching target so existing templates
+ * keep their layout.
  *
  * @param $page - The page CheerioAPI fragment (wrapped in `<temp>`)
  * @param template - The HTML template string with placeholders
@@ -25,5 +28,26 @@ export function templatize($page: CheerioAPI, template: string, fallbackTitle = 
 			.replace("{{content}}", () => pageHtml);
 	}
 
-	return pageHtml;
+	const $template = loadHtml(template);
+	// Legacy templates target the first available injection point in this
+	// priority order: <content> element, then .container, then <body>.
+	const $targets = $template("content").first().length
+		? $template("content").first()
+		: $template(".container").first().length
+			? $template(".container").first()
+			: $template("body").first();
+	if (!$targets.length) {
+		return pageHtml;
+	}
+
+	$template("title").text(title);
+	if ($targets.is("content")) {
+		$targets.replaceWith(pageHtml);
+	} else if ($targets.is(".container")) {
+		$targets.html(pageHtml);
+	} else {
+		$targets.prepend(pageHtml);
+	}
+
+	return $template.html() ?? "";
 }

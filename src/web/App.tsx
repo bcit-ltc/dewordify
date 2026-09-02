@@ -170,6 +170,12 @@ export function App() {
 	const [fullscreen, setFullscreen] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const previewCardRef = useRef<HTMLElement>(null);
+	// Mirror of `file` state so an async conversion can detect that the user
+	// selected a different file while it was in flight.
+	const fileRef = useRef<File | null>(null);
+	useEffect(() => {
+		fileRef.current = file;
+	}, [file]);
 
 	const assetUrls = useMemo(() => {
 		const urls = new Map<string, string>();
@@ -200,11 +206,20 @@ export function App() {
 		return () => URL.revokeObjectURL(url);
 	}, [result, previewPage, assetUrls]);
 
+	/** Replace the selected file, discarding any result from another file. */
+	function selectFile(next: File | null) {
+		setFile(next);
+		setResult(null);
+		setError(null);
+		setPreviewPage(null);
+		setStatus("idle");
+	}
+
 	const onDrop = useCallback((event: React.DragEvent) => {
 		event.preventDefault();
 		setDragging(false);
 		const dropped = event.dataTransfer.files?.[0];
-		if (dropped) setFile(dropped);
+		if (dropped) selectFile(dropped);
 	}, []);
 
 	/** Clear the selected file and all conversion state. */
@@ -219,20 +234,24 @@ export function App() {
 
 	async function runConversion() {
 		if (!file) return;
+		const convertingFile = file;
 		setStatus("converting");
 		setError(null);
 		setResult(null);
 
 		try {
-			const bytes = new Uint8Array(await file.arrayBuffer());
+			const bytes = new Uint8Array(await convertingFile.arrayBuffer());
 			const converted = await convert(bytes, {
 				converter: browserConverter,
-				documentName: file.name.replace(/\.docx$/i, "")
+				documentName: convertingFile.name.replace(/\.docx$/i, "")
 			});
+			// Ignore the result if the user selected a different file mid-conversion.
+			if (fileRef.current !== convertingFile) return;
 			setResult(converted);
 			setPreviewPage(converted.files.find((f) => f.filename.endsWith(".html"))?.filename ?? null);
 			setStatus("done");
 		} catch (err) {
+			if (fileRef.current !== convertingFile) return;
 			setError(err instanceof Error ? err.message : String(err));
 			setStatus("error");
 		}
@@ -264,7 +283,7 @@ export function App() {
 					ref={fileInputRef}
 					type="file"
 					accept=".docx"
-					onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+					onChange={(event) => selectFile(event.target.files?.[0] ?? null)}
 				/>
 				{file ? (
 					<div className="file-card">
@@ -549,6 +568,11 @@ export function App() {
 									<iframe
 										title="Page preview"
 										className="preview"
+										// Converted documents can contain active content from uploads.
+										// Blob URLs would otherwise inherit this app's origin; the
+										// sandbox gives the preview an opaque origin while still
+										// allowing the preview's own scripts (lat.js) to run.
+										sandbox="allow-scripts"
 										style={{ height: (autoHeight || fullscreen) ? "calc(100vh - 120px)" : previewHeight + "vh" }}
 										src={previewUrl ?? undefined}
 									/>
