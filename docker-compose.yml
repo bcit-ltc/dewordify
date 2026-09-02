@@ -1,0 +1,35 @@
+name: ${APP_NAME:-dewordify}
+
+services:
+  app:
+    build:
+      context: .
+      target: builder
+      platforms:
+        - linux/amd64
+        - linux/arm64
+
+    command: npm run dev -- --host --port 9000
+
+    environment:
+      - DEBUG=true
+      - CI=false
+      - NODE_ENV=development
+
+    # https://docs.docker.com/compose/how-tos/file-watch/
+    # develop:
+    #   watch:
+    #     - action: sync
+    #       path: ./src
+    #       target: /app
+    #       ignore:
+    #         - node_modules/
+    #     - action: rebuild
+    #       path: package.json
+
+    volumes:
+      - /app/node_modules
+      - ./:/app
+
+    ports:
+      - "9000:9000"
